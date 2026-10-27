@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Graph Paper Minesweeper</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Chivo+Mono:wght@400;600&display=swap">
+<style>
+  /* Layout: one column sized to the minefield — title and level switch, counters, the field (scrolls sideways if too wide), links below. */
+  :root {
+    --paper: #eef3f7;
+    --board: #fbfdff;
+    --grid: #cfe0ee;
+    --grid-major: #a9c6de;
+    --ink: #1d2a44;
+    --ink-soft: #5b6a85;
+    --apple: #d6372b;
+    --tile: #dbe7f2;
+    --tile-light: #f4f8fc;
+    --tile-shade: #a9c6de;
+    --boom: #f7c9c4;
+    --n1: #2459c9; --n2: #2f8a3e; --n3: #d6372b; --n4: #3b2a8f;
+    --n5: #8a2c1c; --n6: #127a7a; --n7: #1d2a44; --n8: #5b6a85;
+    --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+    --font-mono: "Chivo Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #0c1830; --board: #10203d; --grid: #1c3358; --grid-major: #2a4a7a;
+      --ink: #e8f0ff; --ink-soft: #8ea3c7; --apple: #ff6a55;
+      --tile: #213d68; --tile-light: #2e5185; --tile-shade: #142a4d; --boom: #6b2a2a;
+      --n1: #7aa7ff; --n2: #6cc77a; --n3: #ff6a55; --n4: #b39dff;
+      --n5: #ff9e7a; --n6: #5fd3d3; --n7: #e8f0ff; --n8: #8ea3c7;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #0c1830; --board: #10203d; --grid: #1c3358; --grid-major: #2a4a7a;
+    --ink: #e8f0ff; --ink-soft: #8ea3c7; --apple: #ff6a55;
+    --tile: #213d68; --tile-light: #2e5185; --tile-shade: #142a4d; --boom: #6b2a2a;
+    --n1: #7aa7ff; --n2: #6cc77a; --n3: #ff6a55; --n4: #b39dff;
+    --n5: #ff9e7a; --n6: #5fd3d3; --n7: #e8f0ff; --n8: #8ea3c7;
+    color-scheme: dark;
+  }
+
+  [hidden] { display: none !important; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-mono);
+    display: flex;
+    justify-content: center;
+    padding-block: 24px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .wrap { width: fit-content; min-width: min(100%, 440px); max-width: 100%; display: flex; flex-direction: column; gap: 16px; }
+
+  header { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  h1 { font-family: var(--font-display); font-weight: 800; font-size: 2.1rem; letter-spacing: -0.03em; line-height: 1; margin: 0; }
+
+  .levels { display: flex; border: 2px solid var(--ink); border-radius: 4px; overflow: hidden; }
+  .levels button {
+    font: 600 0.78rem var(--font-mono); padding: 8px 10px; border: 0; cursor: pointer;
+    background: var(--board); color: var(--ink);
+  }
+  .levels button + button { border-left: 2px solid var(--ink); }
+  .levels button[aria-pressed="true"] { background: var(--ink); color: var(--board); }
+  .levels button:focus-visible { outline: 3px solid var(--apple); outline-offset: -3px; }
+
+  .counters { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-variant-numeric: tabular-nums; }
+  .counter { display: flex; flex-direction: column; gap: 2px; min-width: 5ch; }
+  .counter:last-child { align-items: flex-end; }
+  .counter span { font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-soft); }
+  .counter b { font-family: var(--font-display); font-weight: 800; font-size: 1.6rem; line-height: 1; }
+  .middle { display: flex; gap: 8px; }
+
+  .btn, .toggle {
+    font: 600 0.85rem var(--font-mono); border: 2px solid var(--ink); border-radius: 4px;
+    padding: 8px 14px; cursor: pointer;
+  }
+  .btn { color: var(--board); background: var(--ink); }
+  .btn:hover { filter: brightness(1.15); }
+  .toggle { color: var(--ink); background: var(--board); }
+  .toggle[aria-pressed="true"] { background: var(--apple); border-color: var(--apple); color: var(--board); }
+  .btn:focus-visible, .toggle:focus-visible, .ghost:focus-visible { outline: 3px solid var(--apple); outline-offset: 2px; }
+
+  .scroller { overflow-x: auto; padding: 0 8px 10px 0; min-width: 0; }
+  .field {
+    --cell: 34px;
+    display: grid; width: max-content; margin-inline: auto;
+    border: 2px solid var(--ink); border-radius: 4px; overflow: hidden;
+    background: var(--board); box-shadow: 6px 6px 0 var(--grid-major);
+    user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+  }
+  .cell {
+    width: var(--cell); height: var(--cell); padding: 0; margin: 0; border: 0;
+    background: var(--tile); cursor: pointer;
+    box-shadow: inset -2px -2px 0 var(--tile-shade), inset 2px 2px 0 var(--tile-light);
+    font: 800 calc(var(--cell) * 0.55) / 1 var(--font-display);
+    display: flex; align-items: center; justify-content: center;
+    touch-action: manipulation;
+  }
+  .cell:not(.open):hover { filter: brightness(1.06); }
+  .cell:focus-visible { outline: 2px solid var(--apple); outline-offset: -3px; position: relative; z-index: 1; }
+  .cell.open {
+    background: var(--board); box-shadow: inset -1px -1px 0 var(--grid); cursor: default;
+  }
+  .cell.boom { background: var(--boom); }
+  .cell svg { width: 70%; height: 70%; display: block; }
+  .n1 { color: var(--n1); } .n2 { color: var(--n2); } .n3 { color: var(--n3); } .n4 { color: var(--n4); }
+  .n5 { color: var(--n5); } .n6 { color: var(--n6); } .n7 { color: var(--n7); } .n8 { color: var(--n8); }
+
+  .status { font-family: var(--font-display); font-weight: 800; font-size: 1.15rem; min-height: 1.4em; margin: 0; }
+  .actions { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .ghost {
+    font: 600 0.9rem var(--font-mono); color: var(--ink); text-decoration: none;
+    border: 2px solid var(--ink); border-radius: 4px; padding: 8px 14px;
+  }
+  .ghost:hover { background: var(--grid); }
+  .hint { font-size: 0.75rem; line-height: 1.6; color: var(--ink-soft); max-width: 46ch; }
+  kbd {
+    font: 600 0.72rem var(--font-mono); border: 1px solid var(--grid-major); border-bottom-width: 2px;
+    border-radius: 3px; padding: 0 5px; color: var(--ink); background: var(--board);
+  }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Minesweeper</h1>
+    <div class="levels" role="group" aria-label="Difficulty">
+      <button data-level="beginner" aria-pressed="true">Easy</button>
+      <button data-level="intermediate" aria-pressed="false">Medium</button>
+      <button data-level="expert" aria-pressed="false">Hard</button>
+    </div>
+  </header>
+
+  <div class="counters">
+    <div class="counter"><span>Mines left</span><b id="mines-left">10</b></div>
+    <div class="middle">
+      <button class="toggle" id="flag-mode" aria-pressed="false">Flag mode</button>
+      <button class="btn" id="new-game">New game</button>
+    </div>
+    <div class="counter"><span>Time</span><b id="time">0</b></div>
+  </div>
+
+  <div class="scroller">
+    <div class="field" id="field" role="grid" aria-label="Minefield"></div>
+  </div>
+
+  <p class="status" id="status" aria-live="polite">Click any square to start</p>
+
+  <div class="actions">
+    <a class="ghost" href="../index.html">← All games</a>
+    <div class="hint">
+      Click to dig. Right-click to flag, or turn on Flag mode (red) so clicks place flags.
+      Click a number whose mines are all flagged to dig around it.
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const LEVELS = {
+    beginner:     { w: 9,  h: 9,  mines: 10, cell: 40, name: "Easy" },
+    intermediate: { w: 16, h: 16, mines: 40, cell: 32, name: "Medium" },
+    expert:       { w: 30, h: 16, mines: 99, cell: 28, name: "Hard" },
+  };
+
+  // colors go in style="" because SVG presentation attributes don't resolve CSS variables
+  const MINE_SVG = '<svg viewBox="0 0 100 100" aria-hidden="true">' +
+    '<path d="M50 10V90M10 50H90M22 22L78 78M78 22L22 78" style="stroke:var(--ink);stroke-width:9;stroke-linecap:round"/>' +
+    '<circle cx="50" cy="50" r="27" style="fill:var(--ink)"/><circle cx="41" cy="41" r="7" style="fill:var(--board)"/></svg>';
+  const FLAG_SVG = '<svg viewBox="0 0 100 100" aria-hidden="true">' +
+    '<path d="M32 12V88M18 88H60" style="fill:none;stroke:var(--ink);stroke-width:9;stroke-linecap:round"/>' +
+    '<path d="M36 14L82 32L36 50Z" style="fill:var(--apple)"/></svg>';
+  const WRONG_SVG = FLAG_SVG.replace("</svg>",
+    '<path d="M14 14L86 86M86 14L14 86" style="stroke:var(--apple);stroke-width:10;stroke-linecap:round"/></svg>');
+
+  const fieldEl = document.getElementById("field");
+  const minesLeftEl = document.getElementById("mines-left");
+  const timeEl = document.getElementById("time");
+  const statusEl = document.getElementById("status");
+  const flagModeBtn = document.getElementById("flag-mode");
+  const levelBtns = document.querySelectorAll(".levels button");
+
+  let levelKey = "beginner", L, cells, mine, adj, open, flag;
+  let started, over, opened, flags, timer, seconds, boomAt, flagMode = false;
+
+  // ---- sound (synthesized; the context is created on the first click on the field, which is a user gesture) ----
+  let audio = null;
+  function initAudio() {
+    try {
+      if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
+      if (audio.state === "suspended") audio.resume();
+    } catch (e) { audio = null; }
+  }
+
+  function tone(type, from, to, startAt, dur, vol) {
+    if (!audio) return;
+    const t = audio.currentTime + startAt;
+    const osc = audio.createOscillator();
+    const gain = audio.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(from, t);
+    osc.frequency.exponentialRampToValueAtTime(to, t + dur);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(vol, t + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.connect(gain).connect(audio.destination);
+    osc.start(t);
+    osc.stop(t + dur + 0.02);
+  }
+
+  function playVictory() {
+    [523, 659, 784].forEach((f, i) => tone("square", f, f, i * 0.12, 0.12, 0.08));
+    tone("square", 1047, 1047, 0.36, 0.5, 0.09);
+    tone("triangle", 523, 523, 0.36, 0.5, 0.15);
+  }
+
+  function playDefeat() {
+    tone("triangle", 440, 415, 0, 0.18, 0.2);
+    tone("triangle", 349, 330, 0.18, 0.18, 0.2);
+    tone("triangle", 262, 110, 0.36, 0.5, 0.22);
+  }
+
+  try { levelKey = localStorage.getItem("minesweeper-level") || levelKey; } catch (e) {}
+  if (!LEVELS[levelKey]) levelKey = "beginner";
+
+  function neighbors(i) {
+    const x = i % L.w, y = Math.floor(i / L.w), out = [];
+    for (let dy = -1; dy <= 1; dy++)
+      for (let dx = -1; dx <= 1; dx++) {
+        if (!dx && !dy) continue;
+        const nx = x + dx, ny = y + dy;
+        if (nx >= 0 && ny >= 0 && nx < L.w && ny < L.h) out.push(ny * L.w + nx);
+      }
+    return out;
+  }
+
+  function newGame() {
+    L = LEVELS[levelKey];
+    const n = L.w * L.h;
+    mine = new Array(n).fill(false);
+    adj = new Array(n).fill(0);
+    open = new Array(n).fill(false);
+    flag = new Array(n).fill(false);
+    started = false; over = false; opened = 0; flags = 0; seconds = 0; boomAt = -1;
+    clearInterval(timer);
+    timeEl.textContent = 0;
+    statusEl.textContent = "Click any square to start";
+
+    levelBtns.forEach(b => b.setAttribute("aria-pressed", b.dataset.level === levelKey));
+    fieldEl.style.gridTemplateColumns = `repeat(${L.w}, var(--cell))`;
+    // shrink cells on narrow screens, but never below a tappable size (the field scrolls instead)
+    fieldEl.style.setProperty("--cell", `clamp(26px, calc((100vw - 52px) / ${L.w}), ${L.cell}px)`);
+    fieldEl.innerHTML = "";
+    cells = [];
+    for (let i = 0; i < n; i++) {
+      const b = document.createElement("button");
+      b.className = "cell";
+      b.dataset.i = i;
+      b.setAttribute("role", "gridcell");
+      fieldEl.appendChild(b);
+      cells.push(b);
+    }
+    render();
+  }
+
+  // Mines are placed after the first click, keeping that square and its neighbors clear.
+  function placeMines(safe) {
+    const keepClear = new Set([safe, ...neighbors(safe)]);
+    const spots = [];
+    for (let i = 0; i < mine.length; i++) if (!keepClear.has(i)) spots.push(i);
+    for (let k = 0; k < L.mines; k++) {
+      const j = k + Math.floor(Math.random() * (spots.length - k));
+      [spots[k], spots[j]] = [spots[j], spots[k]];
+      mine[spots[k]] = true;
+    }
+    for (let i = 0; i < mine.length; i++) adj[i] = neighbors(i).filter(j => mine[j]).length;
+  }
+
+  function startClock() {
+    started = true;
+    timer = setInterval(() => {
+      seconds = Math.min(999, seconds + 1);
+      timeEl.textContent = seconds;
+    }, 1000);
+  }
+
+  function dig(i) {
+    if (over || open[i] || flag[i]) return;
+    if (!started) { placeMines(i); startClock(); statusEl.textContent = ""; }
+    if (mine[i]) return lose(i);
+    const stack = [i];
+    while (stack.length) {
+      const j = stack.pop();
+      if (open[j] || flag[j]) continue;
+      open[j] = true;
+      opened++;
+      if (adj[j] === 0) for (const k of neighbors(j)) if (!open[k] && !mine[k]) stack.push(k);
+    }
+    if (opened === L.w * L.h - L.mines) win();
+  }
+
+  // Clicking an open number with the right count of flags around it digs its other neighbors.
+  function chord(i) {
+    if (over || !open[i] || adj[i] === 0) return;
+    const around = neighbors(i);
+    if (around.filter(j => flag[j]).length !== adj[i]) return;
+    for (const j of around) if (!flag[j] && !open[j]) { dig(j); if (over) return; }
+  }
+
+  function toggleFlag(i) {
+    if (over || open[i]) return;
+    flag[i] = !flag[i];
+    flags += flag[i] ? 1 : -1;
+  }
+
+  function lose(i) {
+    over = true;
+    boomAt = i;
+    clearInterval(timer);
+    playDefeat();
+    statusEl.textContent = "Boom! You hit a mine.";
+  }
+
+  function win() {
+    over = true;
+    clearInterval(timer);
+    playVictory();
+    mine.forEach((m, i) => { if (m && !flag[i]) { flag[i] = true; flags++; } });
+    let best = null;
+    try {
+      const key = "minesweeper-best-" + levelKey;
+      best = parseInt(localStorage.getItem(key), 10) || null;
+      if (best === null || seconds < best) { localStorage.setItem(key, seconds); best = seconds; }
+    } catch (e) {}
+    statusEl.textContent = `Cleared ${L.name} in ${seconds}s!` + (best !== null ? ` Best: ${best}s` : "");
+  }
+
+  function render() {
+    minesLeftEl.textContent = L.mines - flags;
+    for (let i = 0; i < cells.length; i++) {
+      const c = cells[i];
+      const x = i % L.w + 1, y = Math.floor(i / L.w) + 1;
+      let cls = "cell", html = "", label, kind = "";
+      const showMine = over && boomAt >= 0 && mine[i] && !flag[i];
+      if (open[i] || showMine) {
+        cls += " open";
+        if (mine[i]) { html = MINE_SVG; kind = "mine"; label = "mine"; if (i === boomAt) cls += " boom"; }
+        else if (adj[i]) { html = kind = String(adj[i]); cls += " n" + adj[i]; label = adj[i] + " mines nearby"; }
+        else label = "empty";
+      } else if (flag[i]) {
+        const wrong = over && boomAt >= 0 && !mine[i];
+        html = wrong ? WRONG_SVG : FLAG_SVG;
+        kind = wrong ? "wrong" : "flag";
+        label = wrong ? "flag, no mine here" : "flagged";
+      } else {
+        label = "hidden";
+      }
+      if (c.className !== cls) c.className = cls;
+      if (c.dataset.kind !== kind) { c.dataset.kind = kind; c.innerHTML = html; }
+      c.setAttribute("aria-label", `Row ${y}, column ${x}, ${label}`);
+    }
+  }
+
+  // ---- input ----
+  let lastPointer = "mouse";
+
+  function act(i, wantFlag) {
+    initAudio();
+    if (wantFlag) open[i] ? chord(i) : toggleFlag(i);
+    else open[i] ? chord(i) : dig(i);
+    render();
+  }
+
+  fieldEl.addEventListener("click", e => {
+    const c = e.target.closest(".cell");
+    if (!c) return;
+    act(+c.dataset.i, flagMode);
+  });
+
+  // Flags come only from Flag mode or a mouse right-click; a touch long-press is ignored.
+  fieldEl.addEventListener("pointerdown", e => { lastPointer = e.pointerType; });
+  fieldEl.addEventListener("contextmenu", e => {
+    e.preventDefault();
+    const c = e.target.closest(".cell");
+    if (!c || lastPointer === "touch") return;
+    act(+c.dataset.i, true);
+  });
+
+  fieldEl.addEventListener("keydown", e => {
+    const c = e.target.closest(".cell");
+    if (!c) return;
+    const i = +c.dataset.i;
+    const moves = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -L.w, ArrowDown: L.w };
+    if (moves[e.key] !== undefined) {
+      e.preventDefault();
+      const x = i % L.w;
+      if ((e.key === "ArrowLeft" && x === 0) || (e.key === "ArrowRight" && x === L.w - 1)) return;
+      const j = i + moves[e.key];
+      if (j >= 0 && j < cells.length) cells[j].focus();
+    }
+  });
+
+  flagModeBtn.addEventListener("click", () => {
+    flagMode = !flagMode;
+    flagModeBtn.setAttribute("aria-pressed", flagMode);
+  });
+
+  document.getElementById("new-game").addEventListener("click", newGame);
+  levelBtns.forEach(b => b.addEventListener("click", () => {
+    levelKey = b.dataset.level;
+    try { localStorage.setItem("minesweeper-level", levelKey); } catch (e) {}
+    newGame();
+  }));
+
+  newGame();
+})();
+</script>

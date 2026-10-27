@@ -2,8 +2,6 @@
 
 A collection of small browser games drawn in a graph-paper style. Each game is a single HTML file with no build step and no dependencies beyond Google Fonts.
 
-**Play:** https://mentalplatypus.github.io/PaperArcadeGames/
-
 ## Games
 
 | Game | Folder | About |

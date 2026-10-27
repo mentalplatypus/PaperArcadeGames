@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Graph Paper Sudoku</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Chivo+Mono:wght@400;600&display=swap">
+<style>
+  /* Layout: one centered column — title and level switch, timer row, square 9×9 grid, number pad and tools below. */
+  :root {
+    --paper: #eef3f7;
+    --board: #fbfdff;
+    --grid: #cfe0ee;
+    --grid-major: #a9c6de;
+    --ink: #1d2a44;
+    --ink-soft: #5b6a85;
+    --apple: #d6372b;
+    --pen: #2459c9;          /* your entries, in blue pen; the printed clues stay in ink */
+    --hl-peer: #edf3f9;      /* same row, column or box as the selected square */
+    --hl-same: #d6e5f3;      /* squares holding the selected number */
+    --hl-sel: #bcd5ec;       /* the selected square */
+    --boom: #f7c9c4;         /* rule conflict */
+    --veil: rgba(251, 253, 255, 0.88);
+    --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+    --font-mono: "Chivo Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #0c1830; --board: #10203d; --grid: #1c3358; --grid-major: #2a4a7a;
+      --ink: #e8f0ff; --ink-soft: #8ea3c7; --apple: #ff6a55; --pen: #7aa7ff;
+      --hl-peer: #152a4c; --hl-same: #1f3b66; --hl-sel: #2b4e84; --boom: #6b2a2a;
+      --veil: rgba(16, 32, 61, 0.88);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #0c1830; --board: #10203d; --grid: #1c3358; --grid-major: #2a4a7a;
+    --ink: #e8f0ff; --ink-soft: #8ea3c7; --apple: #ff6a55; --pen: #7aa7ff;
+    --hl-peer: #152a4c; --hl-same: #1f3b66; --hl-sel: #2b4e84; --boom: #6b2a2a;
+    --veil: rgba(16, 32, 61, 0.88);
+    color-scheme: dark;
+  }
+
+  [hidden] { display: none !important; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-mono);
+    display: flex;
+    justify-content: center;
+    padding-block: 24px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .wrap { width: 100%; max-width: 470px; display: flex; flex-direction: column; gap: 16px; }
+
+  header { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  h1 { font-family: var(--font-display); font-weight: 800; font-size: 2.1rem; letter-spacing: -0.03em; line-height: 1; margin: 0; }
+
+  .levels { display: flex; border: 2px solid var(--ink); border-radius: 4px; overflow: hidden; }
+  .levels button {
+    font: 600 0.78rem var(--font-mono); padding: 8px 10px; border: 0; cursor: pointer;
+    background: var(--board); color: var(--ink);
+  }
+  .levels button + button { border-left: 2px solid var(--ink); }
+  .levels button[aria-pressed="true"] { background: var(--ink); color: var(--board); }
+  .levels button:focus-visible { outline: 3px solid var(--apple); outline-offset: -3px; }
+
+  .counters { display: flex; justify-content: space-between; gap: 12px; font-variant-numeric: tabular-nums; }
+  .counter { display: flex; flex-direction: column; gap: 2px; }
+  .counter:last-child { align-items: flex-end; }
+  .counter span { font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-soft); }
+  .counter b { font-family: var(--font-display); font-weight: 800; font-size: 1.6rem; line-height: 1; }
+
+  .board {
+    position: relative; width: 100%; max-width: 100%; aspect-ratio: 1; box-sizing: border-box;
+    border: 2px solid var(--ink); border-radius: 4px; overflow: hidden;
+    background: var(--board); box-shadow: 6px 6px 0 var(--grid-major);
+  }
+  .grid { display: grid; grid-template-columns: repeat(9, 1fr); grid-template-rows: repeat(9, 1fr); width: 100%; height: 100%; }
+  .cell {
+    position: relative; padding: 0; margin: 0; border: 0; min-width: 0;
+    border-right: 1px solid var(--grid-major); border-bottom: 1px solid var(--grid-major);
+    background: var(--board); color: var(--pen); cursor: pointer;
+    font: 600 clamp(17px, 5.4vw, 26px) / 1 var(--font-display);
+    display: flex; align-items: center; justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .cell.br { border-right: 2px solid var(--ink); }
+  .cell.bb { border-bottom: 2px solid var(--ink); }
+  .cell.c8 { border-right: 0; }
+  .cell.r8 { border-bottom: 0; }
+  .cell.given { color: var(--ink); font-weight: 800; }
+  .cell.peer { background: var(--hl-peer); }
+  .cell.same { background: var(--hl-same); }
+  .cell.sel { background: var(--hl-sel); }
+  .cell.conflict { background: var(--boom); }
+  .cell.conflict:not(.given) { color: var(--apple); }
+  .cell:focus { outline: none; }
+  .cell:focus-visible { outline: 2px solid var(--apple); outline-offset: -3px; z-index: 1; }
+  .cell.placed { animation: placed 0.18s ease-out; }
+  @keyframes placed { from { transform: scale(0.6); opacity: 0.2; } }
+
+  .notes {
+    position: absolute; inset: 2px; display: grid;
+    grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
+    font: 500 clamp(8px, 2.1vw, 11px) / 1 var(--font-mono); color: var(--ink-soft);
+  }
+  .notes span { display: flex; align-items: center; justify-content: center; }
+
+  .overlay {
+    position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 10px; text-align: center;
+    background: var(--veil); padding: 16px;
+  }
+  .overlay h2 { font-family: var(--font-display); font-weight: 800; font-size: 1.9rem; margin: 0; letter-spacing: -0.02em; }
+  .overlay p { margin: 0; color: var(--ink-soft); font-size: 0.85rem; max-width: 30ch; line-height: 1.5; }
+
+  .pad { display: grid; grid-template-columns: repeat(9, 1fr); gap: 6px; }
+  .pad button {
+    position: relative; aspect-ratio: 1 / 1.15; padding: 0; cursor: pointer;
+    font: 800 clamp(16px, 4.6vw, 22px) / 1 var(--font-display); color: var(--pen);
+    background: var(--board); border: 2px solid var(--ink); border-radius: 4px;
+  }
+  .pad button small {
+    position: absolute; right: 3px; bottom: 2px;
+    font: 400 0.55rem var(--font-mono); color: var(--ink-soft);
+  }
+  .pad button.done { opacity: 0.35; }
+  .pad button:hover { background: var(--hl-peer); }
+
+  .tools { display: flex; gap: 8px; flex-wrap: wrap; }
+  .tools button, .btn {
+    font: 600 0.85rem var(--font-mono); border: 2px solid var(--ink); border-radius: 4px;
+    padding: 8px 14px; cursor: pointer; color: var(--ink); background: var(--board);
+  }
+  .tools button[aria-pressed="true"] { background: var(--apple); border-color: var(--apple); color: var(--board); }
+  .tools button:hover { filter: brightness(1.06); }
+  .btn.solid { color: var(--board); background: var(--ink); margin-left: auto; }
+  .pad button:focus-visible, .tools button:focus-visible, .btn:focus-visible, .ghost:focus-visible {
+    outline: 3px solid var(--apple); outline-offset: 2px;
+  }
+
+  .actions { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .ghost {
+    font: 600 0.9rem var(--font-mono); color: var(--ink); text-decoration: none;
+    border: 2px solid var(--ink); border-radius: 4px; padding: 8px 14px;
+  }
+  .ghost:hover { background: var(--grid); }
+  .hint { font-size: 0.75rem; line-height: 1.6; color: var(--ink-soft); max-width: 40ch; }
+  kbd {
+    font: 600 0.72rem var(--font-mono); border: 1px solid var(--grid-major); border-bottom-width: 2px;
+    border-radius: 3px; padding: 0 5px; color: var(--ink); background: var(--board);
+  }
+
+  @media (prefers-reduced-motion: reduce) { .cell.placed { animation: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Sudoku</h1>
+    <div class="levels" role="group" aria-label="Difficulty">
+      <button data-level="easy" aria-pressed="true">Easy</button>
+      <button data-level="medium" aria-pressed="false">Medium</button>
+      <button data-level="hard" aria-pressed="false">Hard</button>
+    </div>
+  </header>
+
+  <div class="counters">
+    <div class="counter"><span>Time</span><b id="time">0:00</b></div>
+    <div class="counter"><span>Best</span><b id="best">–</b></div>
+  </div>
+
+  <div class="board">
+    <div class="grid" id="grid" role="grid" aria-label="Sudoku grid"></div>
+    <div class="overlay" id="overlay" hidden>
+      <h2>Solved!</h2>
+      <p id="ov-text"></p>
+      <button class="btn solid" id="ov-new" style="margin-left:0">New puzzle</button>
+    </div>
+  </div>
+
+  <div class="pad" id="pad" aria-label="Numbers"></div>
+
+  <div class="tools">
+    <button id="notes" aria-pressed="false">Notes</button>
+    <button id="erase">Erase</button>
+    <button id="undo">Undo</button>
+    <button class="btn solid" id="new-game">New puzzle</button>
+  </div>
+
+  <div class="actions">
+    <a class="ghost" href="../index.html">← All games</a>
+    <div class="hint">
+      Fill every row, column and 3×3 box with 1–9. Type <kbd>1</kbd>–<kbd>9</kbd> or use the pad,
+      <kbd>N</kbd> for notes, <kbd>Backspace</kbd> to erase, arrows to move.
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  // How many printed clues each level starts with (fewer clues = harder).
+  const LEVELS = {
+    easy:   { clues: 40, name: "Easy" },
+    medium: { clues: 32, name: "Medium" },
+    hard:   { clues: 26, name: "Hard" },
+  };
+
+  const gridEl = document.getElementById("grid");
+  const padEl = document.getElementById("pad");
+  const timeEl = document.getElementById("time");
+  const bestEl = document.getElementById("best");
+  const overlay = document.getElementById("overlay");
+  const ovText = document.getElementById("ov-text");
+  const notesBtn = document.getElementById("notes");
+  const levelBtns = document.querySelectorAll(".levels button");
+
+  const row = i => Math.floor(i / 9), col = i => i % 9;
+  const box = i => Math.floor(row(i) / 3) * 3 + Math.floor(col(i) / 3);
+  const PEERS = [];
+  for (let i = 0; i < 81; i++) {
+    PEERS.push([]);
+    for (let j = 0; j < 81; j++)
+      if (i !== j && (row(i) === row(j) || col(i) === col(j) || box(i) === box(j))) PEERS[i].push(j);
+  }
+
+  let levelKey = "easy", solution, given, values, notes, selected = null, notesMode = false;
+  let history = [], solved = false, startedAt = 0, timer = null;
+  try { levelKey = localStorage.getItem("sudoku-level") || levelKey; } catch (e) {}
+  if (!LEVELS[levelKey]) levelKey = "easy";
+
+  // ---- sound (same synth as the other games; the context starts on the first input) ----
+  let audio = null, noise = null;
+  function initAudio() {
+    try {
+      if (!audio) {
+        audio = new (window.AudioContext || window.webkitAudioContext)();
+        noise = audio.createBuffer(1, audio.sampleRate, audio.sampleRate);
+        const data = noise.getChannelData(0);
+        for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+      }
+      if (audio.state === "suspended") audio.resume();
+    } catch (e) { audio = null; }
+  }
+
+  // soft pencil stroke, as in Tic-Tac-Toe
+  function scratch(startAt, dur, vol = 1) {
+    if (!audio) return;
+    const t = audio.currentTime + startAt;
+    const src = audio.createBufferSource();
+    src.buffer = noise;
+    src.playbackRate.value = 0.9 + Math.random() * 0.2;
+    const band = audio.createBiquadFilter();
+    band.type = "bandpass";
+    band.frequency.setValueAtTime(1100 + Math.random() * 250, t);
+    band.frequency.linearRampToValueAtTime(1500, t + dur);
+    band.Q.value = 0.7;
+    const soften = audio.createBiquadFilter();
+    soften.type = "lowpass";
+    soften.frequency.value = 2200;
+    const gain = audio.createGain();
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.06 * vol, t + 0.05);
+    gain.gain.setValueAtTime(0.05 * vol, t + dur * 0.7);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(band).connect(soften).connect(gain).connect(audio.destination);
+    src.start(t, Math.random() * 0.5, dur + 0.05);
+  }
+
+  function tone(type, from, to, startAt, dur, vol) {
+    if (!audio) return;
+    const t = audio.currentTime + startAt;
+    const osc = audio.createOscillator();
+    const gain = audio.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(from, t);
+    osc.frequency.exponentialRampToValueAtTime(to, t + dur);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(vol, t + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.connect(gain).connect(audio.destination);
+    osc.start(t);
+    osc.stop(t + dur + 0.02);
+  }
+
+  function playVictory() {
+    [523, 659, 784].forEach((f, i) => tone("square", f, f, 0.3 + i * 0.12, 0.12, 0.08));
+    tone("square", 1047, 1047, 0.66, 0.5, 0.09);
+    tone("triangle", 523, 523, 0.66, 0.5, 0.15);
+  }
+
+  // ---- puzzle generator ----
+  function shuffle(a) {
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+  const bits = m => { let c = 0; while (m) { m &= m - 1; c++; } return c; };
+
+  // Backtracking search that always tries the square with the fewest options first.
+  // Counts solutions up to `limit`; with `randomize`, it also leaves the first solution in `g`.
+  function search(g, limit, randomize) {
+    const rows = new Array(9).fill(0), cols = new Array(9).fill(0), boxes = new Array(9).fill(0);
+    for (let i = 0; i < 81; i++) if (g[i]) {
+      const b = 1 << g[i];
+      rows[row(i)] |= b; cols[col(i)] |= b; boxes[box(i)] |= b;
+    }
+    let count = 0;
+    const rec = () => {
+      let best = -1, bestMask = 0, bestN = 10;
+      for (let i = 0; i < 81; i++) {
+        if (g[i]) continue;
+        const mask = ~(rows[row(i)] | cols[col(i)] | boxes[box(i)]) & 0x3fe;
+        const n = bits(mask);
+        if (n === 0) return false;
+        if (n < bestN) { best = i; bestMask = mask; bestN = n; if (n === 1) break; }
+      }
+      if (best === -1) { count++; return count >= limit; }
+      let digits = [1, 2, 3, 4, 5, 6, 7, 8, 9].filter(d => bestMask & (1 << d));
+      if (randomize) shuffle(digits);
+      const r = row(best), c = col(best), bx = box(best);
+      for (const d of digits) {
+        const b = 1 << d;
+        g[best] = d; rows[r] |= b; cols[c] |= b; boxes[bx] |= b;
+        if (rec()) return true;
+        g[best] = 0; rows[r] &= ~b; cols[c] &= ~b; boxes[bx] &= ~b;
+      }
+      return false;
+    };
+    rec();
+    return count;
+  }
+
+  // Fill a random complete grid, then remove clues one by one, keeping a removal only
+  // if the puzzle still has exactly one solution.
+  function makePuzzle(clues) {
+    const full = new Array(81).fill(0);
+    search(full, 1, true);
+    const puzzle = full.slice();
+    let filled = 81;
+    for (const i of shuffle([...Array(81).keys()])) {
+      if (filled <= clues) break;
+      const keep = puzzle[i];
+      puzzle[i] = 0;
+      if (search(puzzle.slice(), 2, false) !== 1) puzzle[i] = keep;
+      else filled--;
+    }
+    return { puzzle, full };
+  }
+
+  // ---- game ----
+  function newGame() {
+    const { puzzle, full } = makePuzzle(LEVELS[levelKey].clues);
+    solution = full;
+    values = puzzle.slice();
+    given = puzzle.map(Boolean);
+    notes = new Array(81).fill(0);
+    history = [];
+    solved = false;
+    selected = null;
+    overlay.hidden = true;
+    levelBtns.forEach(b => b.setAttribute("aria-pressed", b.dataset.level === levelKey));
+    showBest();
+    startedAt = Date.now();
+    clearInterval(timer);
+    timer = setInterval(tick, 1000);
+    tick();
+    render();
+  }
+
+  const fmt = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  const elapsed = () => Math.floor((Date.now() - startedAt) / 1000);
+  function tick() { timeEl.textContent = fmt(elapsed()); }
+
+  function bestKey() { return "sudoku-best-" + levelKey; }
+  function showBest() {
+    let b = null;
+    try { b = parseInt(localStorage.getItem(bestKey()), 10) || null; } catch (e) {}
+    bestEl.textContent = b ? fmt(b) : "–";
+    return b;
+  }
+
+  function snapshot() {
+    history.push({ values: values.slice(), notes: notes.slice() });
+    if (history.length > 200) history.shift();
+  }
+
+  function enter(n) {
+    if (solved || selected === null || given[selected]) return;
+    initAudio();
+    if (notesMode) {
+      if (values[selected]) return;
+      snapshot();
+      notes[selected] ^= 1 << n;
+      scratch(0, 0.07, 0.6);
+      render();
+      return;
+    }
+    snapshot();
+    if (values[selected] === n) {
+      values[selected] = 0;
+    } else {
+      values[selected] = n;
+      notes[selected] = 0;
+      // the number is now used in this row, column and box, so clear it from their notes
+      for (const p of PEERS[selected]) notes[p] &= ~(1 << n);
+      scratch(0, 0.14);
+    }
+    render(selected);
+    checkSolved();
+  }
+
+  function erase() {
+    if (solved || selected === null || given[selected]) return;
+    if (!values[selected] && !notes[selected]) return;
+    initAudio();
+    snapshot();
+    values[selected] = 0;
+    notes[selected] = 0;
+    scratch(0, 0.09, 0.7);
+    render();
+  }
+
+  function undo() {
+    if (solved || !history.length) return;
+    const h = history.pop();
+    values = h.values;
+    notes = h.notes;
+    render();
+  }
+
+  function checkSolved() {
+    if (values.some((v, i) => v !== solution[i])) return;
+    solved = true;
+    clearInterval(timer);
+    const secs = elapsed();
+    let best = showBest();
+    if (best === null || secs < best) {
+      best = secs;
+      try { localStorage.setItem(bestKey(), secs); } catch (e) {}
+      showBest();
+    }
+    playVictory();
+    ovText.textContent = `${LEVELS[levelKey].name} puzzle in ${fmt(secs)}. Best: ${fmt(best)}.`;
+    selected = null;
+    render();
+    overlay.hidden = false;
+    document.getElementById("ov-new").focus({ preventScroll: true });
+  }
+
+  // ---- drawing ----
+  const cells = [];
+  for (let i = 0; i < 81; i++) {
+    const b = document.createElement("button");
+    let cls = "cell";
+    if (col(i) % 3 === 2) cls += " br";
+    if (row(i) % 3 === 2) cls += " bb";
+    if (col(i) === 8) cls += " c8";
+    if (row(i) === 8) cls += " r8";
+    b.dataset.base = cls;
+    b.setAttribute("role", "gridcell");
+    b.tabIndex = -1;
+    b.addEventListener("click", () => { selected = i; render(); b.focus({ preventScroll: true }); });
+    gridEl.appendChild(b);
+    cells.push(b);
+  }
+  cells[0].tabIndex = 0;
+
+  const padBtns = [];
+  for (let n = 1; n <= 9; n++) {
+    const b = document.createElement("button");
+    b.innerHTML = `${n}<small></small>`;
+    b.setAttribute("aria-label", `Enter ${n}`);
+    b.addEventListener("click", () => enter(n));
+    padEl.appendChild(b);
+    padBtns.push(b);
+  }
+
+  function conflicts() {
+    const bad = new Set();
+    for (let i = 0; i < 81; i++)
+      if (values[i]) for (const p of PEERS[i]) if (values[p] === values[i]) { bad.add(i); bad.add(p); }
+    return bad;
+  }
+
+  function render(justPlaced) {
+    const bad = conflicts();
+    const selVal = selected !== null ? values[selected] : 0;
+    const peers = selected !== null ? new Set(PEERS[selected]) : new Set();
+    for (let i = 0; i < 81; i++) {
+      const c = cells[i];
+      let cls = c.dataset.base;
+      if (given[i]) cls += " given";
+      if (peers.has(i)) cls += " peer";
+      if (selVal && values[i] === selVal) cls += " same";
+      if (i === selected) cls += " sel";
+      if (bad.has(i)) cls += " conflict";
+      if (i === justPlaced && values[i]) cls += " placed";
+      c.className = cls;
+
+      if (values[i]) {
+        c.textContent = values[i];
+      } else if (notes[i]) {
+        let h = '<span class="notes">';
+        for (let n = 1; n <= 9; n++) h += `<span>${notes[i] & (1 << n) ? n : ""}</span>`;
+        c.innerHTML = h + "</span>";
+      } else {
+        c.textContent = "";
+      }
+      const what = values[i] ? (given[i] ? `clue ${values[i]}` : `${values[i]}`) : "empty";
+      c.setAttribute("aria-label", `Row ${row(i) + 1}, column ${col(i) + 1}, ${what}`);
+      c.tabIndex = i === (selected ?? 0) ? 0 : -1;
+    }
+    // how many of each number are still to place
+    const counts = new Array(10).fill(0);
+    values.forEach(v => counts[v]++);
+    padBtns.forEach((b, k) => {
+      const left = 9 - counts[k + 1];
+      b.querySelector("small").textContent = left > 0 ? left : "";
+      b.classList.toggle("done", left <= 0);
+    });
+  }
+
+  // ---- input ----
+  document.addEventListener("keydown", e => {
+    if (e.ctrlKey || e.metaKey || e.altKey) {
+      if ((e.ctrlKey || e.metaKey) && (e.key === "z" || e.key === "Z")) { e.preventDefault(); undo(); }
+      return;
+    }
+    if (/^[1-9]$/.test(e.key)) { e.preventDefault(); enter(+e.key); return; }
+    if (e.key === "Backspace" || e.key === "Delete" || e.key === "0") { e.preventDefault(); erase(); return; }
+    if (e.key === "n" || e.key === "N") { e.preventDefault(); toggleNotes(); return; }
+    const moves = { ArrowLeft: [0, -1], ArrowRight: [0, 1], ArrowUp: [-1, 0], ArrowDown: [1, 0] };
+    if (moves[e.key] && !solved) {
+      e.preventDefault();
+      if (selected === null) selected = 0;
+      else {
+        const r = (row(selected) + moves[e.key][0] + 9) % 9, c = (col(selected) + moves[e.key][1] + 9) % 9;
+        selected = r * 9 + c;
+      }
+      render();
+      cells[selected].focus({ preventScroll: true });
+    }
+  });
+
+  function toggleNotes() {
+    notesMode = !notesMode;
+    notesBtn.setAttribute("aria-pressed", notesMode);
+  }
+  notesBtn.addEventListener("click", toggleNotes);
+  document.getElementById("erase").addEventListener("click", erase);
+  document.getElementById("undo").addEventListener("click", undo);
+  document.getElementById("new-game").addEventListener("click", newGame);
+  document.getElementById("ov-new").addEventListener("click", newGame);
+  levelBtns.forEach(b => b.addEventListener("click", () => {
+    levelKey = b.dataset.level;
+    try { localStorage.setItem("sudoku-level", levelKey); } catch (e) {}
+    newGame();
+  }));
+
+  newGame();
+})();
+</script>

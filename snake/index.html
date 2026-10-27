@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Graph Paper Snake</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Chivo+Mono:wght@400;600&display=swap">
+<style>
+  /* Layout: one centered column — header with score, square graph-paper board, controls below. */
+  :root {
+    --paper: #eef3f7;
+    --board: #fbfdff;
+    --grid: #cfe0ee;
+    --grid-major: #a9c6de;
+    --ink: #1d2a44;
+    --ink-soft: #5b6a85;
+    --apple: #d6372b;
+    --leaf: #3f8a4a;
+    --veil: rgba(251, 253, 255, 0.86);
+    --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+    --font-mono: "Chivo Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #0c1830; --board: #10203d; --grid: #1c3358; --grid-major: #2a4a7a;
+      --ink: #e8f0ff; --ink-soft: #8ea3c7; --apple: #ff6a55; --leaf: #6cc77a;
+      --veil: rgba(16, 32, 61, 0.86); color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #0c1830; --board: #10203d; --grid: #1c3358; --grid-major: #2a4a7a;
+    --ink: #e8f0ff; --ink-soft: #8ea3c7; --apple: #ff6a55; --leaf: #6cc77a;
+    --veil: rgba(16, 32, 61, 0.86); color-scheme: dark;
+  }
+
+  [hidden] { display: none !important; }
+  html, body { height: 100%; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-mono);
+    display: flex;
+    justify-content: center;
+    padding-block: 24px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    box-sizing: border-box;
+  }
+  .wrap { width: 100%; max-width: 520px; display: flex; flex-direction: column; gap: 14px; }
+
+  header { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  h1 {
+    font-family: var(--font-display); font-weight: 800; font-size: 2.1rem;
+    letter-spacing: -0.03em; line-height: 1; margin: 0; text-wrap: balance;
+  }
+  h1 small {
+    display: block; font-family: var(--font-mono); font-weight: 400; font-size: 0.72rem;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); margin-top: 6px;
+  }
+  .scores { display: flex; gap: 18px; font-variant-numeric: tabular-nums; }
+  .score { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+  .score span { font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-soft); }
+  .score b { font-family: var(--font-display); font-weight: 800; font-size: 1.6rem; line-height: 1; }
+
+  .board {
+    position: relative; width: 100%; max-width: 100%; aspect-ratio: 1;
+    background: var(--board); border: 2px solid var(--ink); border-radius: 4px;
+    box-shadow: 6px 6px 0 var(--grid-major);
+    touch-action: none; user-select: none;
+  }
+  canvas { display: block; width: 100%; height: 100%; }
+
+  .overlay {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 10px; text-align: center;
+    background: var(--veil); padding: 16px;
+  }
+  .overlay h2 { font-family: var(--font-display); font-weight: 800; font-size: 1.9rem; margin: 0; letter-spacing: -0.02em; }
+  .overlay p { margin: 0; color: var(--ink-soft); font-size: 0.85rem; max-width: 30ch; line-height: 1.5; }
+
+  button {
+    font: 600 0.9rem var(--font-mono); color: var(--board); background: var(--ink);
+    border: 2px solid var(--ink); border-radius: 4px; padding: 10px 18px; cursor: pointer;
+  }
+  button:hover { filter: brightness(1.15); }
+  button:focus-visible { outline: 3px solid var(--apple); outline-offset: 2px; }
+
+  .bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .keys { font-size: 0.75rem; color: var(--ink-soft); line-height: 1.6; }
+  kbd {
+    font: 600 0.72rem var(--font-mono); border: 1px solid var(--grid-major); border-bottom-width: 2px;
+    border-radius: 3px; padding: 0 5px; color: var(--ink); background: var(--board);
+  }
+  .ghost {
+    font: 600 0.9rem var(--font-mono); color: var(--ink); text-decoration: none;
+    border: 2px solid var(--ink); border-radius: 4px; padding: 8px 14px;
+  }
+  .ghost:hover { background: var(--grid); }
+  .ghost:focus-visible { outline: 3px solid var(--apple); outline-offset: 2px; }
+
+  .pad { display: none; grid-template-columns: repeat(3, 64px); grid-template-rows: repeat(2, 56px); gap: 8px; justify-content: center; }
+  .pad button { padding: 0; font-size: 1.3rem; background: var(--board); color: var(--ink); }
+  .pad .up { grid-column: 2; }
+  .pad .left { grid-column: 1; grid-row: 2; }
+  .pad .down { grid-column: 2; grid-row: 2; }
+  .pad .right { grid-column: 3; grid-row: 2; }
+  @media (pointer: coarse) { .pad { display: grid; } .keys { display: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Graph Paper Snake<small>20 × 20 squares</small></h1>
+    <div class="scores">
+      <div class="score"><span>Apples</span><b id="score">0</b></div>
+      <div class="score"><span>Best</span><b id="best">0</b></div>
+    </div>
+  </header>
+
+  <div class="board" id="board">
+    <canvas id="canvas"></canvas>
+    <div class="overlay" id="overlay">
+      <h2 id="ov-title">Ready?</h2>
+      <p id="ov-text">Eat apples, avoid walls and your tail. Press Space, Enter, or any arrow/WASD key to start.</p>
+      <button id="start">Start game</button>
+    </div>
+  </div>
+
+  <div class="bar">
+    <div class="keys">Steer with <kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> or <kbd>WASD</kbd> · <kbd>Space</kbd> pauses</div>
+    <a class="ghost" href="../index.html">← All games</a>
+  </div>
+
+  <div class="pad" aria-label="Direction pad">
+    <button class="up" data-dir="up" aria-label="Up">↑</button>
+    <button class="left" data-dir="left" aria-label="Left">←</button>
+    <button class="down" data-dir="down" aria-label="Down">↓</button>
+    <button class="right" data-dir="right" aria-label="Right">→</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  const N = 20;
+  const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+  const OPPOSITE = { up: "down", down: "up", left: "right", right: "left" };
+  const KEYMAP = {
+    ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right",
+    w: "up", s: "down", a: "left", d: "right", W: "up", S: "down", A: "left", D: "right",
+  };
+
+  const canvas = document.getElementById("canvas");
+  const ctx = canvas.getContext("2d");
+  const board = document.getElementById("board");
+  const overlay = document.getElementById("overlay");
+  const ovTitle = document.getElementById("ov-title");
+  const ovText = document.getElementById("ov-text");
+  const startBtn = document.getElementById("start");
+  const scoreEl = document.getElementById("score");
+  const bestEl = document.getElementById("best");
+
+  let best = 0;
+  try { best = parseInt(localStorage.getItem("snake-best"), 10) || 0; } catch (e) {}
+  bestEl.textContent = best;
+
+  let snake, dir, queue, food, score, interval, state, lastTick;
+
+  // ---- sound (synthesized; the context is created on the first start, which is a user gesture) ----
+  let audio = null;
+  function initAudio() {
+    try {
+      if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
+      if (audio.state === "suspended") audio.resume();
+    } catch (e) { audio = null; }
+  }
+
+  function tone(type, from, to, startAt, dur, vol) {
+    if (!audio) return;
+    const t = audio.currentTime + startAt;
+    const osc = audio.createOscillator();
+    const gain = audio.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(from, t);
+    osc.frequency.exponentialRampToValueAtTime(to, t + dur);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(vol, t + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.connect(gain).connect(audio.destination);
+    osc.start(t);
+    osc.stop(t + dur + 0.02);
+  }
+
+  function playEat() {
+    tone("square", 520, 1040, 0, 0.09, 0.08);
+  }
+
+  function playGameOver() {
+    tone("triangle", 440, 415, 0, 0.18, 0.2);
+    tone("triangle", 349, 330, 0.18, 0.18, 0.2);
+    tone("triangle", 262, 110, 0.36, 0.5, 0.22);
+  }
+
+  function playVictory() {
+    // rising C-major arpeggio, then a held high C
+    [523, 659, 784].forEach((f, i) => tone("square", f, f, i * 0.12, 0.12, 0.08));
+    tone("square", 1047, 1047, 0.36, 0.5, 0.09);
+    tone("triangle", 523, 523, 0.36, 0.5, 0.15);
+  }
+
+  function reset() {
+    snake = [{ x: 7, y: 10 }, { x: 6, y: 10 }, { x: 5, y: 10 }];
+    dir = "right";
+    queue = [];
+    score = 0;
+    interval = 140;
+    scoreEl.textContent = 0;
+    placeFood();
+  }
+
+  function placeFood() {
+    const free = [];
+    for (let y = 0; y < N; y++)
+      for (let x = 0; x < N; x++)
+        if (!snake.some(s => s.x === x && s.y === y)) free.push({ x, y });
+    food = free[Math.floor(Math.random() * free.length)];
+  }
+
+  function steer(d) {
+    if (state === "ready") start();
+    if (state !== "running") return;
+    const last = queue.length ? queue[queue.length - 1] : dir;
+    if (d === last || d === OPPOSITE[last] || queue.length >= 3) return;
+    queue.push(d);
+  }
+
+  function step() {
+    if (queue.length) dir = queue.shift();
+    const [dx, dy] = DIRS[dir];
+    const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+    const eating = food && head.x === food.x && head.y === food.y;
+    const body = eating ? snake : snake.slice(0, -1);
+    if (head.x < 0 || head.y < 0 || head.x >= N || head.y >= N ||
+        body.some(s => s.x === head.x && s.y === head.y)) {
+      return gameOver();
+    }
+    snake.unshift(head);
+    if (eating) {
+      score++;
+      scoreEl.textContent = score;
+      playEat();
+      interval = Math.max(60, interval - 4);
+      if (snake.length === N * N) return gameOver(true);
+      placeFood();
+    } else {
+      snake.pop();
+    }
+  }
+
+  function start() {
+    initAudio();
+    reset();
+    state = "running";
+    overlay.hidden = true;
+    lastTick = performance.now();
+  }
+
+  function togglePause() {
+    if (state === "running") {
+      state = "paused";
+      showOverlay("Paused", "Press Space or the button to keep going.", "Resume");
+    } else if (state === "paused") {
+      state = "running";
+      overlay.hidden = true;
+      lastTick = performance.now();
+    }
+  }
+
+  function gameOver(won) {
+    state = "over";
+    won ? playVictory() : playGameOver();
+    if (score > best) {
+      best = score;
+      bestEl.textContent = best;
+      try { localStorage.setItem("snake-best", best); } catch (e) {}
+    }
+    const word = score === 1 ? "apple" : "apples";
+    showOverlay(won ? "You filled the page" : "Game over",
+      `You ate ${score} ${word}. Best so far: ${best}. Press Space or click the button to play again.`, "Play again");
+  }
+
+  function showOverlay(title, text, btn) {
+    ovTitle.textContent = title;
+    ovText.textContent = text;
+    startBtn.textContent = btn;
+    overlay.hidden = false;
+  }
+
+  // ---- drawing ----
+  function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+  function resize() {
+    const r = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(r.width * dpr);
+    canvas.height = Math.round(r.height * dpr);
+  }
+
+  function draw() {
+    const W = canvas.width, c = W / N;
+    const ink = css("--ink"), grid = css("--grid"), major = css("--grid-major");
+    ctx.fillStyle = css("--board");
+    ctx.fillRect(0, 0, W, W);
+
+    ctx.lineWidth = Math.max(1, W / 600);
+    for (let i = 1; i < N; i++) {
+      ctx.strokeStyle = i % 5 === 0 ? major : grid;
+      ctx.beginPath();
+      ctx.moveTo(i * c, 0); ctx.lineTo(i * c, W);
+      ctx.moveTo(0, i * c); ctx.lineTo(W, i * c);
+      ctx.stroke();
+    }
+
+    if (food) {
+      const fx = (food.x + 0.5) * c, fy = (food.y + 0.55) * c;
+      ctx.fillStyle = css("--apple");
+      ctx.beginPath(); ctx.arc(fx, fy, c * 0.34, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = css("--leaf");
+      ctx.beginPath();
+      ctx.ellipse(fx + c * 0.12, fy - c * 0.36, c * 0.14, c * 0.07, -0.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // snake: one thick inked line through cell centres
+    ctx.strokeStyle = ink;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.lineWidth = c * 0.62;
+    ctx.beginPath();
+    snake.forEach((s, i) => {
+      const x = (s.x + 0.5) * c, y = (s.y + 0.5) * c;
+      i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    });
+    if (snake.length === 1) ctx.lineTo((snake[0].x + 0.5) * c + 0.01, (snake[0].y + 0.5) * c);
+    ctx.stroke();
+
+    // eyes
+    const h = snake[0], [dx, dy] = DIRS[dir];
+    const hx = (h.x + 0.5) * c, hy = (h.y + 0.5) * c;
+    ctx.fillStyle = css("--board");
+    for (const side of [-1, 1]) {
+      ctx.beginPath();
+      ctx.arc(hx + dx * c * 0.12 - dy * side * c * 0.15, hy + dy * c * 0.12 + dx * side * c * 0.15,
+        c * 0.08, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function loop(now) {
+    if (state === "running") {
+      while (now - lastTick >= interval && state === "running") {
+        lastTick += interval;
+        step();
+      }
+    }
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  // ---- input ----
+  document.addEventListener("keydown", e => {
+    if (KEYMAP[e.key]) { e.preventDefault(); steer(KEYMAP[e.key]); }
+    else if (e.key === " " || e.key === "p" || e.key === "P") {
+      e.preventDefault();
+      if (state === "running" || state === "paused") togglePause();
+      else if (state === "ready" || (state === "over" && !e.repeat)) start();
+    } else if (e.key === "Enter" && (state === "ready" || state === "paused")) {
+      e.preventDefault();
+      state === "paused" ? togglePause() : start();
+    }
+  });
+
+  startBtn.addEventListener("click", () => state === "paused" ? togglePause() : start());
+  document.querySelectorAll(".pad button").forEach(b =>
+    b.addEventListener("pointerdown", e => { e.preventDefault(); steer(b.dataset.dir); }));
+
+  let touch = null;
+  board.addEventListener("touchstart", e => { touch = e.touches[0]; }, { passive: true });
+  board.addEventListener("touchend", e => {
+    if (!touch) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touch.clientX, dy = t.clientY - touch.clientY;
+    touch = null;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) return;
+    steer(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up"));
+  });
+
+  window.addEventListener("resize", resize);
+  reset();
+  state = "ready";
+  resize();
+  requestAnimationFrame(loop);
+})();
+</script>

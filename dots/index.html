@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Graph Paper Dots &amp; Boxes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Chivo+Mono:wght@400;600&display=swap">
+<style>
+  /* Layout: one centered column — title and mode switch, board size, score row, square dot board, status and links below. */
+  :root {
+    --paper: #eef3f7;
+    --board: #fbfdff;
+    --grid: #cfe0ee;
+    --grid-major: #a9c6de;
+    --ink: #1d2a44;
+    --ink-soft: #5b6a85;
+    --apple: #d6372b;
+    --win: #e8a400;
+    --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+    --font-mono: "Chivo Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #0c1830; --board: #10203d; --grid: #1c3358; --grid-major: #2a4a7a;
+      --ink: #e8f0ff; --ink-soft: #8ea3c7; --apple: #ff6a55; --win: #ffc93d; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #0c1830; --board: #10203d; --grid: #1c3358; --grid-major: #2a4a7a;
+    --ink: #e8f0ff; --ink-soft: #8ea3c7; --apple: #ff6a55; --win: #ffc93d; color-scheme: dark;
+  }
+
+  [hidden] { display: none !important; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-mono);
+    display: flex;
+    justify-content: center;
+    padding-block: 24px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .wrap { width: 100%; max-width: 460px; display: flex; flex-direction: column; gap: 16px; }
+
+  header { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  h1 {
+    font-family: var(--font-display); font-weight: 800; font-size: 2.1rem;
+    letter-spacing: -0.03em; line-height: 1; margin: 0; text-wrap: balance;
+  }
+
+  .toggle { display: flex; border: 2px solid var(--ink); border-radius: 4px; overflow: hidden; }
+  .toggle button {
+    font: 600 0.8rem var(--font-mono); padding: 8px 12px; border: 0; cursor: pointer;
+    background: var(--board); color: var(--ink);
+  }
+  .toggle button + button { border-left: 2px solid var(--ink); }
+  .toggle button[aria-pressed="true"] { background: var(--ink); color: var(--board); }
+  .toggle button:focus-visible { outline: 3px solid var(--apple); outline-offset: -3px; }
+  .sizes-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .sizes-row .label { font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-soft); }
+
+  .scores { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; font-variant-numeric: tabular-nums; }
+  .score { display: flex; flex-direction: column; gap: 2px; }
+  .score:nth-child(2) { align-items: center; }
+  .score:nth-child(3) { align-items: flex-end; }
+  .score span { font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-soft); padding-bottom: 2px; border-bottom: 2px solid transparent; }
+  .score.active span { color: var(--ink); border-bottom-color: currentColor; }
+  .score b { font-family: var(--font-display); font-weight: 800; font-size: 1.6rem; line-height: 1; }
+  .score.a b { color: var(--ink); }
+  .score.b b { color: var(--apple); }
+
+  .board {
+    width: 100%; max-width: 100%; aspect-ratio: 1;
+    background: var(--board);
+    border: 2px solid var(--ink); border-radius: 4px;
+    box-shadow: 6px 6px 0 var(--grid-major);
+  }
+  .board svg { display: block; width: 100%; height: 100%; touch-action: manipulation; }
+  .gridline { stroke: var(--grid); stroke-width: 2; fill: none; }
+  .dot { fill: var(--ink); }
+
+  /* each line slot: a wide invisible hit line, and the pencil line drawn when someone takes it */
+  .slot { cursor: pointer; outline: none; }
+  .slot .hit { stroke: transparent; stroke-width: 30; stroke-linecap: round; }
+  .slot .pen { stroke-width: 8; stroke-linecap: round; opacity: 0; stroke: var(--ink); }
+  .board[data-turn="b"] .slot .pen { stroke: var(--apple); }
+  .board:not(.locked) .slot:not(.a):not(.b):hover .pen,
+  .board:not(.locked) .slot:not(.a):not(.b):focus-visible .pen { opacity: 0.3; }
+  .slot:focus-visible .hit { stroke: color-mix(in srgb, var(--win) 30%, transparent); }
+  .slot.a, .slot.b, .board.locked .slot { cursor: default; }
+  .board .slot.a .pen { stroke: var(--ink); opacity: 1; }
+  .board .slot.b .pen { stroke: var(--apple); opacity: 1; }
+  .slot.a .pen, .slot.b .pen { stroke-dasharray: 100; stroke-dashoffset: 100; animation: draw 0.16s ease-out forwards; }
+  .slot.last .pen { stroke-width: 10; }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+
+  .box { animation: fade 0.3s ease-out; }
+  .box .tint { stroke: none; }
+  .box.a .tint { fill: color-mix(in srgb, var(--ink) 9%, transparent); }
+  .box.b .tint { fill: color-mix(in srgb, var(--apple) 12%, transparent); }
+  .hatch { stroke-width: 2.5; }
+  .hatch.a { stroke: color-mix(in srgb, var(--ink) 45%, transparent); }
+  .hatch.b { stroke: color-mix(in srgb, var(--apple) 55%, transparent); }
+  @keyframes fade { from { opacity: 0; } }
+
+  .bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .status { font-family: var(--font-display); font-weight: 800; font-size: 1.25rem; letter-spacing: -0.01em; min-height: 1.5em; }
+  .actions { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+  .btn {
+    font: 600 0.9rem var(--font-mono); color: var(--board); background: var(--ink);
+    border: 2px solid var(--ink); border-radius: 4px; padding: 10px 18px; cursor: pointer;
+  }
+  .btn:hover { filter: brightness(1.15); }
+  .ghost {
+    font: 600 0.9rem var(--font-mono); color: var(--ink); text-decoration: none; background: transparent;
+    border: 2px solid var(--ink); border-radius: 4px; padding: 8px 14px; cursor: pointer;
+  }
+  .ghost:hover { background: var(--grid); }
+  .btn:focus-visible, .ghost:focus-visible { outline: 3px solid var(--apple); outline-offset: 2px; }
+  .hint { font-size: 0.75rem; color: var(--ink-soft); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .slot.a .pen, .slot.b .pen { animation: none; stroke-dashoffset: 0; }
+    .box { animation: none; }
+  }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Dots &amp; Boxes</h1>
+    <div class="toggle" role="group" aria-label="Opponent">
+      <button id="mode-cpu" aria-pressed="true">vs Computer</button>
+      <button id="mode-pvp" aria-pressed="false">2 Players</button>
+    </div>
+  </header>
+
+  <div class="sizes-row">
+    <div class="toggle" role="group" aria-label="Board size" id="sizes">
+      <button data-size="3" aria-pressed="false">3×3</button>
+      <button data-size="4" aria-pressed="true">4×4</button>
+      <button data-size="5" aria-pressed="false">5×5</button>
+    </div>
+    <button class="ghost" id="restart">New game</button>
+  </div>
+
+  <div class="scores">
+    <div class="score a" id="score-box-a"><span id="label-a">You</span><b id="score-a">0</b></div>
+    <div class="score"><span>Boxes left</span><b id="left">16</b></div>
+    <div class="score b" id="score-box-b"><span id="label-b">Computer</span><b id="score-b">0</b></div>
+  </div>
+
+  <div class="board" id="board">
+    <svg id="svg" aria-label="Dots and boxes board"></svg>
+  </div>
+
+  <div class="bar">
+    <div class="status" id="status" aria-live="polite">Your turn</div>
+    <button class="btn" id="again" hidden>Play again</button>
+  </div>
+
+  <div class="actions">
+    <a class="ghost" href="../index.html">← All games</a>
+    <span class="hint">Close a box to take another turn</span>
+  </div>
+</div>
+
+<script>
+(() => {
+  const SPACING = 100, MARGIN = 30;
+  const MISTAKE_CHANCE = 0.15; // how often the computer, forced to give boxes away, picks a random line instead of the cheapest
+  const SVG_NS = "http://www.w3.org/2000/svg";
+
+  const boardEl = document.getElementById("board");
+  const svg = document.getElementById("svg");
+  const statusEl = document.getElementById("status");
+  const againBtn = document.getElementById("again");
+  const restartBtn = document.getElementById("restart");
+  const cpuBtn = document.getElementById("mode-cpu");
+  const pvpBtn = document.getElementById("mode-pvp");
+  const sizeBtns = [...document.querySelectorAll("#sizes button")];
+  const scoreEls = { a: document.getElementById("score-a"), b: document.getElementById("score-b") };
+  const scoreBoxes = { a: document.getElementById("score-box-a"), b: document.getElementById("score-box-b") };
+  const labels = { a: document.getElementById("label-a"), b: document.getElementById("label-b") };
+  const leftEl = document.getElementById("left");
+
+  let mode = "cpu", size = 4, starter = "b";
+  try { const s = +localStorage.getItem("dots-size"); if ([3, 4, 5].includes(s)) size = s; } catch (e) {}
+
+  // edges[i] = [x1, y1, x2, y2]; edgeBoxes[i] = boxes it borders; boxEdges[b] = its four sides
+  let edges, edgeBoxes, boxEdges, slots, boxesLayer;
+  let drawn, sides, turn, over, score, thinking, locked;
+
+  // ---- sound (synthesized; the context is created on the first click, which is a user gesture) ----
+  let audio = null, noise = null;
+  function initAudio() {
+    try {
+      if (!audio) {
+        audio = new (window.AudioContext || window.webkitAudioContext)();
+        // one second of white noise, reused for every pencil stroke
+        noise = audio.createBuffer(1, audio.sampleRate, audio.sampleRate);
+        const data = noise.getChannelData(0);
+        for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+      }
+      if (audio.state === "suspended") audio.resume();
+    } catch (e) { audio = null; }
+  }
+
+  // A soft pencil stroke: noise kept to the low-mid range, with a gentle swell and fade.
+  function scratch(startAt, dur) {
+    if (!audio) return;
+    const t = audio.currentTime + startAt;
+    const src = audio.createBufferSource();
+    src.buffer = noise;
+    src.playbackRate.value = 0.9 + Math.random() * 0.2;
+    const band = audio.createBiquadFilter();
+    band.type = "bandpass";
+    band.frequency.setValueAtTime(1100 + Math.random() * 250, t);
+    band.frequency.linearRampToValueAtTime(1500, t + dur);
+    band.Q.value = 0.7;
+    const soften = audio.createBiquadFilter();
+    soften.type = "lowpass";
+    soften.frequency.value = 2200;
+    const gain = audio.createGain();
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.06, t + 0.04);
+    gain.gain.setValueAtTime(0.05, t + dur * 0.7);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(band).connect(soften).connect(gain).connect(audio.destination);
+    src.start(t, Math.random() * 0.5, dur + 0.05);
+  }
+
+  function tone(type, from, to, startAt, dur, vol) {
+    if (!audio) return;
+    const t = audio.currentTime + startAt;
+    const osc = audio.createOscillator();
+    const gain = audio.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(from, t);
+    osc.frequency.exponentialRampToValueAtTime(to, t + dur);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(vol, t + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.connect(gain).connect(audio.destination);
+    osc.start(t);
+    osc.stop(t + dur + 0.02);
+  }
+
+  // a little two-note chime per box closed, rising when one line closes two boxes
+  function playBox(count) {
+    tone("triangle", 660, 660, 0.12, 0.1, 0.14);
+    tone("triangle", count > 1 ? 1047 : 880, count > 1 ? 1047 : 880, 0.2, 0.18, 0.14);
+  }
+
+  function playVictory() {
+    [523, 659, 784].forEach((f, i) => tone("square", f, f, 0.5 + i * 0.12, 0.12, 0.08));
+    tone("square", 1047, 1047, 0.86, 0.5, 0.09);
+    tone("triangle", 523, 523, 0.86, 0.5, 0.15);
+  }
+
+  function playDefeat() {
+    tone("triangle", 440, 415, 0.5, 0.18, 0.2);
+    tone("triangle", 349, 330, 0.68, 0.18, 0.2);
+    tone("triangle", 262, 110, 0.86, 0.5, 0.22);
+  }
+
+  // ---- board ----
+  const el = (name, attrs, parent) => {
+    const e = document.createElementNS(SVG_NS, name);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  };
+  const pos = k => MARGIN + k * SPACING;
+
+  function buildBoard() {
+    const n = size, W = n * SPACING + MARGIN * 2;
+    edges = []; edgeBoxes = []; boxEdges = Array.from({ length: n * n }, () => []);
+    const addEdge = (coords, boxes) => {
+      const i = edges.length;
+      edges.push(coords);
+      edgeBoxes.push(boxes);
+      boxes.forEach(b => boxEdges[b].push(i));
+    };
+    for (let r = 0; r <= n; r++)
+      for (let c = 0; c < n; c++)
+        addEdge([pos(c), pos(r), pos(c + 1), pos(r)], [r > 0 ? (r - 1) * n + c : -1, r < n ? r * n + c : -1].filter(b => b >= 0));
+    for (let r = 0; r < n; r++)
+      for (let c = 0; c <= n; c++)
+        addEdge([pos(c), pos(r), pos(c), pos(r + 1)], [c > 0 ? r * n + c - 1 : -1, c < n ? r * n + c : -1].filter(b => b >= 0));
+
+    svg.innerHTML = "";
+    svg.setAttribute("viewBox", `0 0 ${W} ${W}`);
+    const defs = el("defs", {}, svg);
+    // quarter-spacing graph paper, lined up so every dot sits on a grid crossing
+    const grid = el("pattern", { id: "grid", x: MARGIN, y: MARGIN, width: 25, height: 25, patternUnits: "userSpaceOnUse" }, defs);
+    el("path", { d: "M0 0 V25 M0 0 H25", class: "gridline" }, grid);
+    // pencil shading for claimed boxes; the two players hatch in opposite directions
+    [["a", 45], ["b", -45]].forEach(([p, deg]) => {
+      const pat = el("pattern", { id: `hatch-${p}`, width: 11, height: 11, patternUnits: "userSpaceOnUse", patternTransform: `rotate(${deg})` }, defs);
+      el("line", { x1: 0, y1: 0, x2: 0, y2: 11, class: `hatch ${p}` }, pat);
+    });
+    el("rect", { width: W, height: W, fill: "url(#grid)" }, svg);
+
+    boxesLayer = el("g", {}, svg);
+    const slotsLayer = el("g", {}, svg);
+    slots = edges.map(([x1, y1, x2, y2], i) => {
+      const g = el("g", { class: "slot", tabindex: 0, role: "button" }, slotsLayer);
+      const r1 = (y1 - MARGIN) / SPACING + 1, c1 = (x1 - MARGIN) / SPACING + 1;
+      const r2 = (y2 - MARGIN) / SPACING + 1, c2 = (x2 - MARGIN) / SPACING + 1;
+      g.setAttribute("aria-label", `Line from row ${r1} column ${c1} to row ${r2} column ${c2}`);
+      el("line", { x1, y1, x2, y2, class: "hit" }, g);
+      el("line", { x1, y1, x2, y2, class: "pen", pathLength: 100 }, g);
+      g.addEventListener("click", () => humanMove(i));
+      g.addEventListener("keydown", e => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); humanMove(i); }
+      });
+      return g;
+    });
+    const dotsLayer = el("g", {}, svg);
+    for (let r = 0; r <= n; r++)
+      for (let c = 0; c <= n; c++) el("circle", { cx: pos(c), cy: pos(r), r: 7, class: "dot" }, dotsLayer);
+  }
+
+  function drawBox(b, player) {
+    const x = pos(b % size) + 7, y = pos(Math.floor(b / size)) + 7, s = SPACING - 14;
+    const g = el("g", { class: `box ${player}` }, boxesLayer);
+    el("rect", { x, y, width: s, height: s, class: "tint" }, g);
+    el("rect", { x, y, width: s, height: s, fill: `url(#hatch-${player})` }, g);
+  }
+
+  // ---- game ----
+  const name = p => mode === "cpu" ? (p === "a" ? "You" : "Computer") : (p === "a" ? "Player 1" : "Player 2");
+  const other = p => p === "a" ? "b" : "a";
+
+  function newGame() {
+    clearTimeout(thinking);
+    buildBoard();
+    drawn = Array(edges.length).fill(null);
+    sides = Array(size * size).fill(0);
+    score = { a: 0, b: 0 };
+    starter = other(starter);
+    turn = starter;
+    over = false;
+    againBtn.hidden = true;
+    labels.a.textContent = name("a");
+    labels.b.textContent = name("b");
+    updateScores();
+    nextTurn(false);
+  }
+
+  function updateScores() {
+    scoreEls.a.textContent = score.a;
+    scoreEls.b.textContent = score.b;
+    leftEl.textContent = size * size - score.a - score.b;
+    scoreBoxes.a.classList.toggle("active", !over && turn === "a");
+    scoreBoxes.b.classList.toggle("active", !over && turn === "b");
+  }
+
+  function setLocked(v) {
+    locked = v;
+    boardEl.classList.toggle("locked", v);
+  }
+
+  function nextTurn(again) {
+    boardEl.dataset.turn = turn;
+    updateScores();
+    if (mode === "cpu" && turn === "b") {
+      statusEl.textContent = again ? "Computer goes again…" : "Computer is thinking…";
+      setLocked(true);
+      thinking = setTimeout(() => play(computerMove()), again ? 380 : 600);
+    } else {
+      setLocked(false);
+      if (mode === "cpu") statusEl.textContent = again ? "Box! Go again" : "Your turn";
+      else statusEl.textContent = again ? `Box! ${name(turn)} goes again` : `${name(turn)}'s turn`;
+    }
+  }
+
+  function humanMove(i) {
+    if (over || locked || drawn[i]) return;
+    initAudio();
+    play(i);
+  }
+
+  function play(i) {
+    drawn[i] = turn;
+    slots.forEach(s => s.classList.remove("last"));
+    const slot = slots[i];
+    slot.classList.add(turn, "last");
+    slot.removeAttribute("tabindex");
+    slot.setAttribute("aria-disabled", "true");
+    scratch(0, 0.14);
+
+    let closed = 0;
+    for (const b of edgeBoxes[i]) {
+      if (++sides[b] === 4) { drawBox(b, turn); score[turn]++; closed++; }
+    }
+    if (closed) playBox(closed);
+    if (score.a + score.b === size * size) return finish();
+    if (!closed) turn = other(turn);
+    nextTurn(closed > 0);
+  }
+
+  function finish() {
+    over = true;
+    setLocked(true);
+    updateScores();
+    const winner = score.a === score.b ? null : score.a > score.b ? "a" : "b";
+    if (!winner) statusEl.textContent = "It's a tie";
+    else if (mode === "cpu") statusEl.textContent = winner === "a" ? `You win ${score.a}–${score.b}!` : `Computer wins ${score.b}–${score.a}`;
+    else statusEl.textContent = `${name(winner)} wins ${score[winner]}–${score[other(winner)]}!`;
+    // the jingle waits half a second so the last line and box chime finish first
+    if (winner) (mode === "cpu" && winner === "b") ? playDefeat() : playVictory();
+    againBtn.hidden = false;
+    againBtn.focus({ preventScroll: true });
+  }
+
+  // ---- computer ----
+  const pick = list => list[Math.floor(Math.random() * list.length)];
+
+  // an undrawn line that would close a box, or -1
+  function findCapture(d, s) {
+    for (let b = 0; b < s.length; b++) {
+      if (s[b] !== 3) continue;
+      for (const e of boxEdges[b]) if (!d[e]) return e;
+    }
+    return -1;
+  }
+
+  // how many boxes the opponent could grab in a row if this line were drawn now
+  function giveaway(e) {
+    const d = drawn.slice(), s = sides.slice();
+    const draw = x => {
+      d[x] = "x";
+      let got = 0;
+      for (const b of edgeBoxes[x]) if (++s[b] === 4) got++;
+      return got;
+    };
+    draw(e);
+    let total = 0, x;
+    while ((x = findCapture(d, s)) !== -1) total += draw(x);
+    return total;
+  }
+
+  // Take any box on offer; otherwise draw a line that hands nothing over;
+  // otherwise give away the smallest run of boxes.
+  function computerMove() {
+    const capture = findCapture(drawn, sides);
+    if (capture !== -1) return capture;
+    const free = drawn.map((v, i) => v ? -1 : i).filter(i => i >= 0);
+    const safe = free.filter(e => edgeBoxes[e].every(b => sides[b] < 2));
+    if (safe.length) return pick(safe);
+    if (Math.random() < MISTAKE_CHANCE) return pick(free);
+    let best = Infinity, bestMoves = [];
+    for (const e of free) {
+      const g = giveaway(e);
+      if (g < best) { best = g; bestMoves = [e]; }
+      else if (g === best) bestMoves.push(e);
+    }
+    return pick(bestMoves);
+  }
+
+  // ---- controls ----
+  function setMode(m) {
+    if (m === mode) return;
+    mode = m;
+    cpuBtn.setAttribute("aria-pressed", m === "cpu");
+    pvpBtn.setAttribute("aria-pressed", m === "pvp");
+    starter = "b";
+    newGame();
+  }
+  function setSize(n) {
+    size = n;
+    sizeBtns.forEach(b => b.setAttribute("aria-pressed", +b.dataset.size === n));
+    try { localStorage.setItem("dots-size", n); } catch (e) {}
+    starter = "b";
+    newGame();
+  }
+  cpuBtn.addEventListener("click", () => setMode("cpu"));
+  pvpBtn.addEventListener("click", () => setMode("pvp"));
+  sizeBtns.forEach(b => b.addEventListener("click", () => setSize(+b.dataset.size)));
+  restartBtn.addEventListener("click", () => { initAudio(); starter = other(starter); newGame(); });
+  againBtn.addEventListener("click", () => { initAudio(); newGame(); });
+
+  setSize(size);
+})();
+</script>

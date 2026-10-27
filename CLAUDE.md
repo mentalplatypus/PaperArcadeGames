@@ -1,6 +1,6 @@
 # Paper Arcade
 
-Small browser games in a shared graph-paper style. Each game is one self-contained `index.html` in its own folder (`snake/`, `tictactoe/`, `minesweeper/`, `ruler/`, `sudoku/`). The root `index.html` is the collection page, with one card per game.
+Small browser games in a shared graph-paper style. Each game is one self-contained `index.html` in its own folder (`snake/`, `tictactoe/`, `minesweeper/`, `ruler/`, `sudoku/`, `dots/`). The root `index.html` is the collection page, with one card per game.
 
 - Repository: https://github.com/mentalplatypus/PaperArcadeGames (public, branch `main`)
 - Live site: https://mentalplatypus.github.io/PaperArcadeGames/ (GitHub Pages redeploys on every push to `main`)

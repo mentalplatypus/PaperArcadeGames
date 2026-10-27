@@ -13,6 +13,7 @@ A collection of small browser games drawn in a graph-paper style. Each game is a
 | Minesweeper | `minesweeper/` | Three board sizes, flags, and best times. |
 | Ruler Merge | `ruler/` | Slide equal lengths together to double them. Make a 128 cm line to win, working around the ink blots. |
 | Sudoku | `sudoku/` | Three difficulty levels, pencil notes, and undo. |
+| Dots & Boxes | `dots/` | Draw lines between dots and close boxes to claim them. Play the computer or a friend on 3×3, 4×4 or 5×5 boards. |
 
 ## Running locally
 

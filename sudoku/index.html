@@ -178,7 +178,10 @@
     <div class="overlay" id="overlay" hidden>
       <h2>Solved!</h2>
       <p id="ov-text"></p>
-      <button class="btn solid" id="ov-new" style="margin-left:0">New puzzle</button>
+      <div class="tools" style="justify-content:center">
+        <button id="ov-restart">Play again</button>
+        <button class="btn solid" id="ov-new" style="margin-left:0">New puzzle</button>
+      </div>
     </div>
   </div>
 
@@ -188,6 +191,7 @@
     <button id="notes" aria-pressed="false">Notes</button>
     <button id="erase">Erase</button>
     <button id="undo">Undo</button>
+    <button id="restart">Restart</button>
     <button class="btn solid" id="new-game">New puzzle</button>
   </div>
 
@@ -366,11 +370,29 @@
     overlay.hidden = true;
     levelBtns.forEach(b => b.setAttribute("aria-pressed", b.dataset.level === levelKey));
     showBest();
+    startClock();
+    render();
+  }
+
+  // Clear your entries and notes on the same puzzle and start the clock over.
+  // Undo brings the cleared entries back, unless the puzzle was already solved.
+  function restart() {
+    if (solved) history = [];
+    else if (values.some((v, i) => v && !given[i]) || notes.some(Boolean)) snapshot();
+    values = values.map((v, i) => given[i] ? v : 0);
+    notes = new Array(81).fill(0);
+    solved = false;
+    selected = null;
+    overlay.hidden = true;
+    startClock();
+    render();
+  }
+
+  function startClock() {
     startedAt = Date.now();
     clearInterval(timer);
     timer = setInterval(tick, 1000);
     tick();
-    render();
   }
 
   const fmt = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
@@ -555,6 +577,8 @@
   notesBtn.addEventListener("click", toggleNotes);
   document.getElementById("erase").addEventListener("click", erase);
   document.getElementById("undo").addEventListener("click", undo);
+  document.getElementById("restart").addEventListener("click", restart);
+  document.getElementById("ov-restart").addEventListener("click", restart);
   document.getElementById("new-game").addEventListener("click", newGame);
   document.getElementById("ov-new").addEventListener("click", newGame);
   levelBtns.forEach(b => b.addEventListener("click", () => {

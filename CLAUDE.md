@@ -20,5 +20,5 @@ Commit and push regularly as you work, so no progress is ever lost and any chang
 
 1. Create a folder with an `index.html`, reusing the shared design tokens, fonts, light/dark themes and synthesized sounds from the existing games.
 2. Give it a `← All games` link to `../index.html`.
-3. Add a card (with a canvas thumbnail) to the root `index.html` and a row to `README.md`.
+3. Add a card (with a canvas thumbnail) to the root `index.html` and a line to the games list in `README.md`. Keep `README.md` visitor-facing: no build or editing notes.
 4. Commit and push.

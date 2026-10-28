@@ -11,6 +11,8 @@ Finished as of October 2026, with six games. The collection page has no "coming 
 
 The project is listed under "Finished projects" on the home page (https://mentalplatypus.github.io/, repo `mentalplatypus/mentalplatypus.github.io`, branch `master`), and the collection page's "← David Wang" link above the title leads back to it. Paper Arcade is the only project with the graph-paper look; the home page, the tracker and the Python chart pages use the Dusk gradient theme (see the home page repo's CLAUDE.md). If a game is ever added or renamed, also update the game tags on the home page's Paper Arcade card.
 
+Every page here, including each game, has the site-wide light/dark switch in the top-right corner (see the home page CLAUDE.md); games use 60px top padding to make room for it. Canvas drawing that reads theme colors (the collection thumbnails, Snake) must redraw on the `themechange` event, and code checking for dark mode must look at `document.documentElement.dataset.theme` before `prefers-color-scheme`.
+
 ## Git workflow (required)
 
 Commit and push regularly as you work, so no progress is ever lost and any change can be reverted.

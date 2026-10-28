@@ -71,11 +71,6 @@
   .card .play { margin-top: auto; align-self: flex-start; font-weight: 600; font-size: 0.85rem; border-bottom: 2px solid var(--grid-major); }
   a.card:hover .play, a.card:focus-visible .play { border-bottom-color: var(--apple); }
 
-  .card.empty {
-    background: transparent; border-style: dashed; border-color: var(--grid-major);
-    box-shadow: none; justify-content: center; align-items: center; text-align: center; min-height: 200px;
-  }
-
   @media (prefers-reduced-motion: reduce) { .card { transition: none; } }
 </style>
 
@@ -136,9 +131,6 @@
         <p>Take turns drawing lines between dots. Close a box to claim it and go again. Play the computer or a friend.</p>
         <span class="play">Play →</span>
       </a>
-    </li>
-    <li>
-      <div class="card empty"><p>More games coming soon</p></div>
     </li>
   </ul>
 </div>

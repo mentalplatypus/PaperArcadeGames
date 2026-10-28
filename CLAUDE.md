@@ -9,7 +9,7 @@ Small browser games in a shared graph-paper style. Each game is one self-contain
 
 Finished as of October 2026, with six games. The collection page has no "coming soon" placeholder; the games fill two rows of three.
 
-The project is listed under "Finished projects" on the home page (https://mentalplatypus.github.io/, repo `mentalplatypus/mentalplatypus.github.io`, branch `master`), and the collection page's "← David Wang" link above the title leads back to it (same underlined style as the HoYo Version Tracker and the Python chart pages). If a game is ever added or renamed, also update the game tags on the home page's Paper Arcade card.
+The project is listed under "Finished projects" on the home page (https://mentalplatypus.github.io/, repo `mentalplatypus/mentalplatypus.github.io`, branch `master`), and the collection page's "← David Wang" link above the title leads back to it. Paper Arcade is the only project with the graph-paper look; the home page, the tracker and the Python chart pages use the Dusk gradient theme (see the home page repo's CLAUDE.md). If a game is ever added or renamed, also update the game tags on the home page's Paper Arcade card.
 
 ## Git workflow (required)
 

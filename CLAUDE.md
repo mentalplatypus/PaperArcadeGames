@@ -5,6 +5,12 @@ Small browser games in a shared graph-paper style. Each game is one self-contain
 - Repository: https://github.com/mentalplatypus/PaperArcadeGames (public, branch `main`)
 - Live site: https://mentalplatypus.github.io/PaperArcadeGames/ (GitHub Pages redeploys on every push to `main`)
 
+## Status
+
+Finished as of October 2026, with six games. The collection page has no "coming soon" placeholder; the games fill two rows of three.
+
+The project is listed under "Finished projects" on the home page (https://mentalplatypus.github.io/, repo `mentalplatypus/mentalplatypus.github.io`, branch `master`), and the collection page's byline links back to it. If a game is ever added or renamed, also update the game tags on the home page's Paper Arcade card.
+
 ## Git workflow (required)
 
 Commit and push regularly as you work, so no progress is ever lost and any change can be reverted.

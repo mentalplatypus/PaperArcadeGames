@@ -49,10 +49,10 @@
     font-family: var(--font-display); font-weight: 800; font-size: clamp(2.4rem, 7vw, 3.6rem);
     letter-spacing: -0.035em; line-height: 0.95; margin: 0; text-wrap: balance;
   }
-  .byline { margin: 8px 0 0; font-size: 0.8rem; color: var(--ink-soft); }
-  .byline a { color: var(--ink); font-weight: 600; text-decoration-color: var(--grid-major); text-underline-offset: 3px; }
-  .byline a:hover { text-decoration-color: var(--apple); }
-  .byline a:focus-visible { outline: 3px solid var(--apple); outline-offset: 3px; }
+  h1 { margin-top: 18px; }
+  .back { font-size: 0.8rem; font-weight: 600; color: var(--ink); text-decoration: none; border-bottom: 2px solid var(--grid-major); }
+  .back:hover { border-bottom-color: var(--apple); }
+  .back:focus-visible { outline: 3px solid var(--apple); outline-offset: 3px; }
   .lede { margin: 10px 0 0; color: var(--ink-soft); font-size: 0.85rem; letter-spacing: 0.06em; text-transform: uppercase; }
 
   .games { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); grid-auto-rows: 1fr; gap: 20px; }
@@ -76,9 +76,9 @@
 
 <div class="wrap">
   <header>
+    <a class="back" href="https://mentalplatypus.github.io/">← David Wang</a>
     <h1>Paper Arcade</h1>
     <p class="lede">Small games, one sheet each</p>
-    <p class="byline">Made by David Wang · <a href="https://mentalplatypus.github.io/">See my other projects →</a></p>
   </header>
 
   <!-- To add a game: put it in its own folder next to snake/, give it a "← All games"

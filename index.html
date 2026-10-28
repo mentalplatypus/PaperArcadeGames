@@ -68,7 +68,8 @@
   .card canvas { width: 100%; aspect-ratio: 1; max-width: 100%; display: block; border: 1px solid var(--grid-major); }
   .card h2 { font-family: var(--font-display); font-weight: 800; font-size: 1.4rem; margin: 4px 0 0; letter-spacing: -0.02em; }
   .card p { margin: 0; font-size: 0.8rem; line-height: 1.5; color: var(--ink-soft); }
-  .card .play { margin-top: auto; font-weight: 600; font-size: 0.85rem; }
+  .card .play { margin-top: auto; align-self: flex-start; font-weight: 600; font-size: 0.85rem; border-bottom: 2px solid var(--grid-major); }
+  a.card:hover .play, a.card:focus-visible .play { border-bottom-color: var(--apple); }
 
   .card.empty {
     background: transparent; border-style: dashed; border-color: var(--grid-major);
